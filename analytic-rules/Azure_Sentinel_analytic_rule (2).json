@@ -1,0 +1,92 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/045b7636-4aa3-4836-8b01-e740de358726')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/045b7636-4aa3-4836-8b01-e740de358726')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Failed Access Attempts on Azure Key Vault",
+                "description": "Multiple failed access attempts detected against Azure Key Vault, \nwhich may indicate an unauthorized user or application attempting \nto access secrets, keys, or certificates.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "AzureDiagnostics\r\n| where ResourceProvider == \"MICROSOFT.KEYVAULT\"\r\n| where ResultType == \"Forbidden\" or ResultType == \"Unauthorized\"\r\n| summarize FailedAttempts = count() \r\n    by CallerIPAddress, identity_claim_upn_s, bin(TimeGenerated, 10m)\r\n| where FailedAttempts > 5\r\n| extend AccountName = tostring(split(identity_claim_upn_s, \"@\")[0])\r\n| extend UPNSuffix = tostring(split(identity_claim_upn_s, \"@\")[1])\r\n| project TimeGenerated, CallerIPAddress, identity_claim_upn_s, AccountName, UPNSuffix, FailedAttempts",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "CredentialAccess"
+                ],
+                "techniques": [
+                    "T1555"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Multiple Failed Access Attempts on Azure Key Vault - {{identity_claim_upn_s}}",
+                    "alertDescriptionFormat": "Multiple failed access attempts detected against Azure Key Vault, \nwhich may indicate an unauthorized user or application attempting \nto access secrets, keys, or certificates.\n\nUser: {{identity_claim_upn_s}}\nIP Address: {{CallerIPAddress}}\nFailed Attempts: {{FailedAttempts}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "identity_claim_upn_s"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AccountName"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "CallerIPAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
