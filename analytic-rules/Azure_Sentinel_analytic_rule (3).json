@@ -1,0 +1,97 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/d5985fba-686a-4efb-a026-241a9d300bfd')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/d5985fba-686a-4efb-a026-241a9d300bfd')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Conditional Access Policy Disabled or Deleted",
+                "description": "Detects when a Conditional Access policy has been deleted or disabled. \nThis may indicate an attacker attempting to weaken authentication \ncontrols or bypass security boundaries.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "AuditLogs\r\n| where OperationName in (\"Delete conditional access policy\", \"Update conditional access policy\")\r\n| extend PolicyName = tostring(TargetResources[0].displayName)\r\n| extend ModifiedBy = tostring(InitiatedBy.user.userPrincipalName)\r\n| extend IPAddress = tostring(InitiatedBy.user.ipAddress)\r\n| extend OldValue = tostring(TargetResources[0].modifiedProperties[0].oldValue)\r\n| extend NewValue = tostring(TargetResources[0].modifiedProperties[0].newValue)\r\n// Fånga disabled eller borttagen policy\r\n| where OperationName == \"Delete conditional access policy\"\r\n    or (OperationName == \"Update conditional access policy\" \r\n    and NewValue has \"disabled\")\r\n| extend AccountName = tostring(split(ModifiedBy, \"@\")[0])\r\n| extend UPNSuffix = tostring(split(ModifiedBy, \"@\")[1])\r\n| project TimeGenerated, OperationName, PolicyName, ModifiedBy, AccountName, UPNSuffix, IPAddress, OldValue, NewValue\r\n| order by TimeGenerated desc",
+                "queryFrequency": "PT5H",
+                "queryPeriod": "PT5H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "DefenseEvasion",
+                    "Persistence"
+                ],
+                "techniques": [
+                    "T1556"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "CA Policy Modified - {{OperationName}} on {{PolicyName}}",
+                    "alertDescriptionFormat": "A Conditional Access policy was deleted or disabled by {{ModifiedBy}} from IP {{IPAddress}} on  {{PolicyName}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {},
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AccountName"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "UPNSuffix"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "ModifiedBy"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
