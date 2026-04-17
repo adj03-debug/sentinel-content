@@ -1,0 +1,89 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/27d32009-aa82-4428-8759-79cd5fc2ab61')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/27d32009-aa82-4428-8759-79cd5fc2ab61')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Multi-Factor Authentication Disabled for a User",
+                "description": "Multi-Factor Authentication (MFA) helps prevent credential compromise. This alert identifies when an attempt has been made to deactivate MFA for a user.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "(union isfuzzy=true\n(AuditLogs\n| where OperationName =~ \"Disable Strong Authentication\"\n| extend _parsedIntiatedByUser = parse_json(tostring(InitiatedBy.user))\n| extend _parsedIntiatedByApp = parse_json(tostring(InitiatedBy.app))\n| extend IPAddress = tostring(_parsedIntiatedByUser.ipAddress)\n| extend InitiatedByUser = iff(isnotempty(tostring(_parsedIntiatedByUser.userPrincipalName)),\n tostring(_parsedIntiatedByUser.userPrincipalName), tostring(_parsedIntiatedByApp.displayName))\n| extend Targetprop = todynamic(TargetResources)\n| extend TargetUser = tostring(Targetprop[0].userPrincipalName)\n| summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated) by User = TargetUser, InitiatedByUser , Operation = OperationName , CorrelationId, IPAddress, Category, Source = SourceSystem , AADTenantId, Type\n),\n(AWSCloudTrail\n| where EventName in~ (\"DeactivateMFADevice\", \"DeleteVirtualMFADevice\")\n| extend _parsedRequestParameters = parse_json(RequestParameters)\n| extend InstanceProfileName = tostring(_parsedRequestParameters.InstanceProfileName)\n| extend TargetUser = tostring(_parsedRequestParameters.userName)\n| summarize StartTimeUtc = min(TimeGenerated), EndTimeUtc = max(TimeGenerated) by User = TargetUser, Source = EventSource , Operation = EventName , TenantorInstance_Detail = InstanceProfileName, IPAddress = SourceIpAddress\n)\n)\n| extend timestamp = StartTimeUtc, UserName = tostring(split(User, '@', 0)[0]), UPNSuffix = tostring(split(User, '@', 1)[0])\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "CredentialAccess",
+                    "Persistence"
+                ],
+                "techniques": [
+                    "T1098",
+                    "T1556"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "65c78944-930b-4cae-bd79-c3664ae30ba7",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "MFA Disabled for User - {{User}}",
+                    "alertDescriptionFormat": "MFA has been disabled for a user account, which may indicate account takeover or insider threat.\n\nTarget User: {{User}}\nInitiated By: {{InitiatedByUser}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "UserName"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "UPNSuffix"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.0.5"
+            }
+        }
+    ]
+}
