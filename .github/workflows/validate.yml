@@ -1,0 +1,21 @@
+name: Validate Sentinel content
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-detections:
+    name: Validate analytic rules
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Sentinel Analytics Rules
+        uses: SecureHats/validate-detections@v2
+        with:
+          filesPath: analytic-rules
+          logLevel: Normal
