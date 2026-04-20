@@ -1,5 +1,5 @@
 FileName, CommitSha
-analytic-rules/Azure_Sentinel_analytic_rule (3).json,e8685b5e406869a70bad1d5f86cd5ae37f4d1a79
-analytic-rules/Azure_Sentinel_analytic_rule (6).json,
+analytic-rules/Multi-Factor Authentication Disabled for a User.json,db5f06981a6ce4bcdba4c84fc1a1c712f70cd641
+analytic-rules/Conditional_Access_Policy_Disabled_or_Deleted.json,86046f4e67bcbd4e3da04ce9c23e3f190ec67e47
 analytic-rules/Microsoft Defender Threat Intelligence Analytics.json,863afc660dfd55c32b07d62aa3d38011d7dcec9a
 
