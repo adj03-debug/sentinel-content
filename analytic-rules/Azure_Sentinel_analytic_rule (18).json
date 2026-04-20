@@ -1,0 +1,113 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/0be9fc9c-18f6-417e-a914-c62d02c62a85')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/0be9fc9c-18f6-417e-a914-c62d02c62a85')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Authentication Methods Changed for Privileged Account",
+                "description": "Identifies authentication methods being changed for a privileged account. This could be an indication of an attacker adding an auth method to the account so they can have continued access.\nRef : https://docs.microsoft.com/azure/active-directory/fundamentals/security-operations-privileged-accounts#things-to-monitor-1",
+                "severity": "High",
+                "enabled": true,
+                "query": "let queryperiod = 5d;\nlet queryfrequency = 6h;\nlet security_info_actions = dynamic([\"User registered security info\", \"User changed default security info\", \"User deleted security info\", \"Admin updated security info\", \"User reviewed security info\", \"Admin deleted security info\", \"Admin registered security info\"]);\nlet VIPUsers = (\n    IdentityInfo\n    | where TimeGenerated > ago(queryperiod)\n    | mv-expand AssignedRoles\n    | where AssignedRoles contains 'Admin'\n    | summarize by AccountUPN);\nAuditLogs\n| where TimeGenerated > ago(queryfrequency)\n| where Category =~ \"UserManagement\"\n| where ActivityDisplayName in (security_info_actions)\n| extend InitiatingAppName = tostring(InitiatedBy.app.displayName)\n| extend InitiatingAppServicePrincipalId = tostring(InitiatedBy.app.servicePrincipalId)\n| extend InitiatingUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName)\n| extend InitiatingAadUserId = tostring(InitiatedBy.user.id)\n| extend InitiatingIpAddress = tostring(iff(isnotempty(InitiatedBy.user.ipAddress), InitiatedBy.user.ipAddress, InitiatedBy.app.ipAddress))\n| mv-apply TargetResource = TargetResources on \n  (\n      where TargetResource.type =~ \"User\"\n      | extend TargetUserPrincipalName = tostring(TargetResource.userPrincipalName)\n  )\n| where TargetUserPrincipalName in~ (VIPUsers)\n// Uncomment the line below if you are experiencing high volumes of Target entities. If this is uncommented, the Target column will not be mapped to an entity.\n//| summarize Start=min(TimeGenerated), End=max(TimeGenerated), Actions = make_set(ResultReason, MaxSize=8), Targets=make_set(Target, MaxSize=256) by Initiator, IP, Result\n// Comment out this line below, if line above is used.\n| summarize Start=min(TimeGenerated), End=max(TimeGenerated), Actions = make_set(ResultReason, MaxSize=8) by InitiatingAppName, InitiatingAppServicePrincipalId, \nInitiatingUserPrincipalName, InitiatingAadUserId, InitiatingIpAddress, TargetUserPrincipalName, Result\n| extend InitiatingAccountName = tostring(split(InitiatingUserPrincipalName, \"@\")[0]), InitiatingAccountUPNSuffix = tostring(split(InitiatingUserPrincipalName, \"@\")[1]), \nTargetName = iff(tostring(TargetUserPrincipalName) has \"[\", \"\", tostring(split(TargetUserPrincipalName,'@',0)[0])), TargetUPNSuffix = iff(tostring(TargetUserPrincipalName) has \"[\", \"\", tostring(split(TargetUserPrincipalName,'@',1)[0]))\n",
+                "queryFrequency": "PT6H",
+                "queryPeriod": "P5D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Persistence"
+                ],
+                "techniques": [
+                    "T1098"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "694c91ee-d606-4ba9-928e-405a2dd0ff0f",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Privileged Account MFA/Security Info Changed for {{TargetUserPrincipalName}}",
+                    "alertDescriptionFormat": "A privileged account had one or more authentication methods modified. \nThis may indicate account takeover or persistence attempts.\n\nModified Account: {{TargetUserPrincipalName}}\nInitiating IP: {{InitiatingIpAddress}}\n",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "InitiatingAppName"
+                            },
+                            {
+                                "identifier": "AadUserId",
+                                "columnName": "InitiatingAppServicePrincipalId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "InitiatingUserPrincipalName"
+                            },
+                            {
+                                "identifier": "Name",
+                                "columnName": "InitiatingAccountName"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "InitiatingAccountUPNSuffix"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "AadUserId",
+                                "columnName": "InitiatingAadUserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "InitiatingIpAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.1.1"
+            }
+        }
+    ]
+}

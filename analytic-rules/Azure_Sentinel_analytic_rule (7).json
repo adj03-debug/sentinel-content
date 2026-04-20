@@ -1,0 +1,78 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/f7f8600e-200e-4133-bbcb-577b2d9d7f5e')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/f7f8600e-200e-4133-bbcb-577b2d9d7f5e')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Conditional Access - Dynamic Group Exclusion Changes",
+                "description": "// Detects changes to Dynamic Membership Rules for specified groups (often used in CA exclusions)",
+                "severity": "High",
+                "enabled": true,
+                "query": "// Detects changes to Dynamic Membership Rules for specified groups (often used in CA exclusions)\nlet monitoredGroups = dynamic([\"Group1\", \"Group2\"]);  // <-- Customize this list\nAuditLogs\n| where OperationName == \"Update group\"\n| where AdditionalDetails[0].value == \"DynamicMembership\"\n| extend DynamicGroupName = tostring(TargetResources[0].displayName)\n| where DynamicGroupName in (monitoredGroups)\n| extend modifiedBy = tostring(InitiatedBy.user.userPrincipalName)\n| extend accountName = tostring(split(modifiedBy, \"@\")[0])\n| extend upnSuffix = tostring(split(modifiedBy, \"@\")[1])\n| extend oldRule = tostring(TargetResources[0].modifiedProperties[0].oldValue)\n| extend newRule = tostring(TargetResources[0].modifiedProperties[0].newValue)\n| where oldRule != newRule\n| project\n    TimeGenerated,\n    OperationName,\n    DynamicGroupName,\n    modifiedBy,\n    accountName,\n    upnSuffix,\n    result = Result,\n    oldRule,\n    newRule\n| order by TimeGenerated desc",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "PrivilegeEscalation"
+                ],
+                "techniques": [
+                    "T1484"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "c385944b-17b9-4b2b-921e-0e8d0341a675",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "AlertPerResult"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Dynamic Membership Rule Changed - {{DynamicGroupName}} by {{accountName}}",
+                    "alertDescriptionFormat": "A dynamic membership rule was modified on a monitored group, potentially used in Conditional Access exclusions.\n\nGroup: {{DynamicGroupName}}\nModified by: {{modifiedBy}}\nTime: {{TimeGenerated}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "accountName"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "upnSuffix"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.0.1"
+            }
+        }
+    ]
+}

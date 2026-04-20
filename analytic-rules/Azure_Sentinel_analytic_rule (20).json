@@ -1,0 +1,98 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/70224829-83fb-4412-868e-6428230afb02')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/70224829-83fb-4412-868e-6428230afb02')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Unusual Volume of file deletion by users",
+                "description": "This query looks for users performing file deletion activities. Spikes in file deletion observed from risky sign-in sessions are flagged here.\nThis applies to SharePoint and OneDrive users.\nAudit event and Cloud application identifier references.\nReference - https://learn.microsoft.com/microsoft-365/compliance/audit-log-activities?view=o365-worldwide\nReference - https://learn.microsoft.com/azure/sentinel/entities-reference#cloud-application-identifiers",
+                "severity": "High",
+                "enabled": true,
+                "query": "let relevantOperations = pack_array(\"FileDeleted\", \"FileRecycled\", \"FileDeletedFirstStageRecycleBin\", \"FileDeletedSecondStageRecycleBin\", \"FileVersionsAllMinorsRecycled\", \"FileVersionRecycled\", \"FileVersionsAllRecycled\");\nlet relevantAppIds = pack_array(int(20892), int(15600)); // App Ids for SharePoint and OneDrive\nlet timeWindow = 7d;\nlet timeNow = now();\n//\nlet riskyUsers= // Look for users with risky sign-ins\n  SigninLogs    \n  | where CreatedDateTime between ((timeNow - timeWindow) .. (timeNow))\n  | where isnotempty(UserId) and isnotempty(OriginalRequestId)\n  | where ResultType == '0'\n  | where RiskLevelDuringSignIn == 'high'\n  | project RiskLevelDuringSignIn, UserId, CreatedDateTime, SessionId=OriginalRequestId\n  ;\nlet hasUsers = isnotempty(toscalar(riskyUsers));\n//\nlet deleteEvents = // look for file deletion activity and scope it to risky users\n  CloudAppEvents\n  | where hasUsers\n  | where TimeGenerated between ((timeNow - timeWindow) .. (timeNow))\n  | where ApplicationId in (relevantAppIds)\n  | where isnotempty(AccountObjectId)\n  | where AccountObjectId in (riskyUsers)\n  | where ActionType in (relevantOperations)\n  | extend SessionId= tostring(RawEventData.AppAccessContext.AADSessionId)\n  | where isnotempty(SessionId)\n  | project UserId=AccountObjectId, AccountDisplayName, ApplicationId, SessionId, ActionType, TimeGenerated, ReportId\n  ;   \n //\ndeleteEvents  \n| join kind=leftsemi riskyUsers on UserId, SessionId\n| summarize Count=count() , (Timestamp, ReportId)=arg_min(TimeGenerated, ReportId) by UserId, AccountDisplayName, ApplicationId, ActionType, Time=bin(TimeGenerated, 5m)\n// look for only those scoped users who have generated an increase in file deletion activity.\n| summarize TotalCount= countif(Count > 50), (Timestamp, ReportId)=arg_min(Timestamp, ReportId) by UserId, AccountDisplayName, ApplicationId \n| where TotalCount >= 3\n| project UserId, AccountDisplayName, ApplicationId, TotalCount, ReportId, Timestamp\n| extend NTDomain = tostring(split(AccountDisplayName,'\\\\',0)[0]), Name = tostring(split(AccountDisplayName,'\\\\',1)[0])\n",
+                "queryFrequency": "PT4H",
+                "queryPeriod": "P1D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "Impact"
+                ],
+                "techniques": [
+                    "T1485"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "e5f8e196-3544-4a8b-96a9-17c1b6a49710",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Unusual File Deletion by {{AccountDisplayName}} ",
+                    "alertDescriptionFormat": "User {{AccountDisplayName}} has deleted an unusual volume of files on device {DeviceName}.\n\nTime detected: {{Timestamp}}\nNumber of files deleted: {{TotalCount}} \n\nThis could indicate ransomware, data sabotage, or other malicious activity. Verify that this action is authorized and legitimate.",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {
+                    "Count": "TotalCount"
+                },
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "AadUserId",
+                                "columnName": "UserId"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "Name"
+                            },
+                            {
+                                "identifier": "NTDomain",
+                                "columnName": "NTDomain"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "CloudApplication",
+                        "fieldMappings": [
+                            {
+                                "identifier": "AppId",
+                                "columnName": "ApplicationId"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.0.1"
+            }
+        }
+    ]
+}

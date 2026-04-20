@@ -1,0 +1,91 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/b53b7c58-a616-4f92-9dbd-9e7ac3b2d80f')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/b53b7c58-a616-4f92-9dbd-9e7ac3b2d80f')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "MFA Spamming followed by Successful login",
+                "description": "Identifies MFA Spamming followed by Successful logins and by a successful authentication within a given time window.\nDefault Failure count is 10 and 1 successful login with default Time Window is 5 minutes.",
+                "severity": "High",
+                "enabled": true,
+                "query": "// Filter for sign-in logs ingested within the last day\nSigninLogs\n| where ingestion_time() > ago(1d)\n// Filter for records with AuthenticationRequirement set to multiFactorAuthentication\n| where AuthenticationRequirement == \"multiFactorAuthentication\"\n// Extract information from dynamic columns DeviceDetail and LocationDetails\n| extend DeviceDetail = todynamic(DeviceDetail), LocationDetails = todynamic(LocationDetails)\n// Extract specific attributes from DeviceDetail and LocationDetails\n| extend\n      OS = tostring(DeviceDetail.operatingSystem),\n      Browser = tostring(DeviceDetail.browser),\n      State = tostring(LocationDetails.state),\n      City = tostring(LocationDetails.city),\n      Region = tostring(LocationDetails.countryOrRegion)\n// Expand multi-value property AuthenticationDetails into separate records\n| mv-expand todynamic(AuthenticationDetails)\n// Parse AuthResult from JSON in AuthenticationDetails and convert to string\n| extend AuthResult = tostring(parse_json(AuthenticationDetails).authenticationStepResultDetail)\n// Summarize data by aggregating statistics for each user, IP, and AuthResult\n| summarize FailedAttempts = countif(AuthResult == \"MFA denied; user declined the authentication\" or AuthResult == \"MFA denied; user did not respond to mobile app notification\"), SuccessfulAttempts = countif(AuthResult == \"MFA successfully completed\"), InvolvedOS = make_set(OS, 5), InvolvedBrowser = make_set(Browser), StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by UserPrincipalName, IPAddress, State, City, Region\n// Calculate AuthenticationWindow by finding time difference between start and end times\n| extend AuthenticationWindow = (EndTime - StartTime)\n// Filter for records with more than 10 failed attempts in 5-minute window and at least 1 successful attempt\n| where FailedAttempts > 10 and AuthenticationWindow <= 5m and SuccessfulAttempts >= 1\n// Extract user's name and UPN suffix using split function\n| extend Name = tostring(split(UserPrincipalName, '@', 0)[0]), UPNSuffix = tostring(split(UserPrincipalName, '@', 1)[0])\n",
+                "queryFrequency": "P1D",
+                "queryPeriod": "P1D",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "CredentialAccess"
+                ],
+                "techniques": [
+                    "T1110"
+                ],
+                "subTechniques": [],
+                "alertRuleTemplateName": "a8cc6d5c-4e7e-4b48-b4ac-d8a116c62a8b",
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Alert for MFA spamming activity on {{UserPrincipalName}}",
+                    "alertDescriptionFormat": "Alert for MFA spamming followed by successful login generated for {{UserPrincipalName}}. \nMultiple MFA prompts were attempted in a short period, followed by a successful authentication, which may indicate MFA fatigue or unauthorized account access.",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "UserPrincipalName"
+                            },
+                            {
+                                "identifier": "Name",
+                                "columnName": "Name"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "UPNSuffix"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IPAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": "1.0.4"
+            }
+        }
+    ]
+}

@@ -1,0 +1,106 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/83227812-8b45-427b-a77f-38c159c977af')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/83227812-8b45-427b-a77f-38c159c977af')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Multiple failed logons followed by a success",
+                "description": "Detects brute-force behavior where an account has multiple failed authentication attempts followed by a successful authentication within a short time window on DC",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "let timeRange = 2h;\r\nlet authenticationWindow = 1h;\r\nlet authenticationThreshold = 5;\r\nSecurityEvent\r\n| where TimeGenerated > ago(timeRange)\r\n| where EventID in (4624, 4625)\r\n| where IpAddress != \"-\" and isnotempty(Account)\r\n| extend Outcome = iff(EventID == 4624, \"Success\", \"Failure\")\r\n| summarize OutcomeCount=count() by bin(TimeGenerated, 10m), Account, IpAddress, Computer, Outcome\r\n| project TimeGenerated, Account, IpAddress, Computer, Outcome, OutcomeCount\r\n| sort by TimeGenerated asc, Account, IpAddress, Computer, Outcome, OutcomeCount\r\n| serialize\r\n| extend SessionStartedUtc = row_window_session(TimeGenerated, timeRange, authenticationWindow, Account != prev(Account) or prev(Outcome) == \"Success\")\r\n| summarize FailureCountBeforeSuccess=sumif(OutcomeCount, Outcome == \"Failure\"),\r\n          StartTime=min(TimeGenerated),\r\n          EndTime=max(TimeGenerated),\r\n          list_Outcome=make_list(Outcome, 128),\r\n          set_Computer=make_set(Computer, 128),\r\n          set_IpAddress=make_set(IpAddress, 128)\r\n          by SessionStartedUtc, Account\r\n| where array_index_of(list_Outcome, \"Success\") != 0\r\n| where array_index_of(list_Outcome, \"Success\") == array_length(list_Outcome) - 1\r\n| project-away SessionStartedUtc, list_Outcome\r\n| where FailureCountBeforeSuccess >= authenticationThreshold\r\n| mv-expand set_IpAddress, set_Computer\r\n| extend IpAddress = tostring(set_IpAddress),\r\n         Computer = tostring(set_Computer)\r\n| extend timestamp=StartTime,\r\n         NTDomain = split(Account, \"\\\\\", 0)[0],\r\n         Name = split(Account, \"\\\\\", 1)[0],\r\n         HostName = tostring(split(Computer, \".\", 0)[0]),\r\n         DnsDomain = tostring(strcat_array(array_slice(split(Computer, \".\"), 1, -1), \".\"))",
+                "queryFrequency": "PT2H",
+                "queryPeriod": "PT2H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "CredentialAccess"
+                ],
+                "techniques": [],
+                "subTechniques": [],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Multiple failed logons followed by a success for {{Account}}",
+                    "alertDescriptionFormat": "The account {{Account}} had 5 failed logons followed by a successful authentication between {{StartTime}} and {{EndTime}}",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": null,
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Account"
+                            },
+                            {
+                                "identifier": "Name",
+                                "columnName": "Name"
+                            },
+                            {
+                                "identifier": "NTDomain",
+                                "columnName": "NTDomain"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Host",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Computer"
+                            },
+                            {
+                                "identifier": "HostName",
+                                "columnName": "HostName"
+                            },
+                            {
+                                "identifier": "DnsDomain",
+                                "columnName": "DnsDomain"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "IpAddress"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
