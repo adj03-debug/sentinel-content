@@ -1,0 +1,107 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspace": {
+            "type": "String"
+        }
+    },
+    "resources": [
+        {
+            "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/b7acb08d-769c-470f-bd41-74a48654a3c0')]",
+            "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/b7acb08d-769c-470f-bd41-74a48654a3c0')]",
+            "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "kind": "Scheduled",
+            "apiVersion": "2023-12-01-preview",
+            "properties": {
+                "displayName": "Diagnostic Settings Deleted - Possible Log Blinding",
+                "description": "Detects deletion of diagnostic settings on Azure resources. \nThis is a common technique used by attackers to disable logging \nand remove forensic evidence after compromise.",
+                "severity": "Medium",
+                "enabled": true,
+                "query": "AzureActivity\r\n| where OperationNameValue =~ \"microsoft.insights/diagnosticSettings/delete\"\r\n| where ActivityStatusValue =~ \"Success\"\r\n| extend ResourceName = tostring(Properties_d.resource)\r\n| extend CallerIP = tostring(CallerIpAddress)\r\n| extend AccountName = tostring(split(Caller, \"@\")[0])\r\n| extend UPNSuffix = tostring(split(Caller, \"@\")[1])\r\n| project TimeGenerated, OperationNameValue, ResourceGroup, ResourceName, Caller, AccountName, UPNSuffix, CallerIP, SubscriptionId\r\n| order by TimeGenerated desc",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "startTimeUtc": null,
+                "tactics": [
+                    "DefenseEvasion"
+                ],
+                "techniques": [
+                    "T1562"
+                ],
+                "subTechniques": [
+                    "T1562.008"
+                ],
+                "alertRuleTemplateName": null,
+                "incidentConfiguration": {
+                    "createIncident": true,
+                    "groupingConfiguration": {
+                        "enabled": false,
+                        "reopenClosedIncident": false,
+                        "lookbackDuration": "PT5H",
+                        "matchingMethod": "AllEntities",
+                        "groupByEntities": [],
+                        "groupByAlertDetails": [],
+                        "groupByCustomDetails": []
+                    }
+                },
+                "eventGroupingSettings": {
+                    "aggregationKind": "SingleAlert"
+                },
+                "alertDetailsOverride": {
+                    "alertDisplayNameFormat": "Diagnostic Settings Deleted - {{ResourceName}} by {{Caller}}",
+                    "alertDescriptionFormat": "Diagnostic settings were deleted on {{ResourceName}} by {{Caller}} from IP {{CallerIP}}. This may indicate an attempt to blind logging.",
+                    "alertDynamicProperties": []
+                },
+                "customDetails": {},
+                "entityMappings": [
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Name",
+                                "columnName": "AccountName"
+                            },
+                            {
+                                "identifier": "UPNSuffix",
+                                "columnName": "UPNSuffix"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "Account",
+                        "fieldMappings": [
+                            {
+                                "identifier": "FullName",
+                                "columnName": "Caller"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "IP",
+                        "fieldMappings": [
+                            {
+                                "identifier": "Address",
+                                "columnName": "CallerIP"
+                            }
+                        ]
+                    },
+                    {
+                        "entityType": "AzureResource",
+                        "fieldMappings": [
+                            {
+                                "identifier": "ResourceId",
+                                "columnName": "ResourceName"
+                            }
+                        ]
+                    }
+                ],
+                "sentinelEntitiesMappings": null,
+                "templateVersion": null
+            }
+        }
+    ]
+}
