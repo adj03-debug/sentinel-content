@@ -1,17 +1,16 @@
 name: Validate Sentinel content
 
 on:
-  push:
-    branches: [main]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
   validate-detections:
-    name: Validate analytic rules
+    name: Validate Sentinel analytic rules
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Validate Sentinel Analytics Rules
