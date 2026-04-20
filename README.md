@@ -4,6 +4,9 @@ A collection of Microsoft Sentinel Analytic Rules built and maintained as ARM te
 
 ## Contents
 
+### Data connectors
+You need Entra ID, Azure Actiivty, Azure key vault, Defender XDR and Windows Security Events via AMA
+
 ### Analytic Rules (20)
 Detection rules covering identity, credential access, persistence, and defense evasion:
 
