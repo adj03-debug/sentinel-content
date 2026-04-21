@@ -23,7 +23,7 @@
                     "Persistence",
                     "LateralMovement"
                 ],
-                "techniques": [],
+                "techniques": [T1053],
                 "subTechniques": []
             }
         }
