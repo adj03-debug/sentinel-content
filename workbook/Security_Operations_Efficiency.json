@@ -17,7 +17,7 @@
     },
     "workbookSourceId": {
       "type": "string",
-      "defaultValue": "/subscriptions/bd821ab6-b7df-4e6a-a0dc-7c5f15d923f1/resourcegroups/rg-sentinel/providers/microsoft.operationalinsights/workspaces/sentinel-loganalytics",
+      "defaultValue": "[resourceId('microsoft.operationalinsights/workspaces', parameters('workspaceName'))]",
       "metadata": {
         "description": "The id of resource instance to which the workbook will be associated"
       }
