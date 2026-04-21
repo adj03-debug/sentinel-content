@@ -7,7 +7,7 @@ A collection of Microsoft Sentinel Analytic Rules built and maintained as ARM te
 ### Data connectors
 You need Entra ID, Azure Actiivty, Azure key vault, Defender XDR and Windows Security Events via AMA
 
-### Analytic Rules (20)
+### Analytic Rules (22)
 Detection rules covering identity, credential access, persistence, and defense evasion:
 
 - Admin promotion after Role Management Application Permission Grant
@@ -29,9 +29,12 @@ Detection rules covering identity, credential access, persistence, and defense e
 - Suspicious Granting of Permissions to an Account
 - Suspicious Number of Resource Creation or Deployment Activities
 - Unusual Volume of File Deletion by User
+- Honeypot account sign-in activity detected
+- Suspicious application consent similar to O365 Attack Toolkit
 
 ### Workbooks (1)
 - Data Collection Health Monitoring
+- Security Operations Efficiency
 
 ## Deployment
 All rules are packaged as ARM templates and can be deployed directly to a Microsoft Sentinel workspace.
