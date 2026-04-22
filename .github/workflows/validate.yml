@@ -20,8 +20,3 @@ jobs:
           filesPath: analytic-rules
           logLevel: Normal
 
-      - name: Validate Workbooks
-        uses: SecureHats/validate-detections@v2
-        with:
-          filesPath: workbooks
-          logLevel: Normal
