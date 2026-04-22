@@ -1,6 +1,6 @@
 # Microsoft Sentinel Detection Rules
 
-A collection of Microsoft Sentinel Analytic Rules built and maintained as ARM templates.
+A collection of Microsoft Sentinel Analytic Rules and Workbooks built and maintained as ARM templates. Connecting this with Sentinel Repository and it will add everything.
 
 ## Contents
 
