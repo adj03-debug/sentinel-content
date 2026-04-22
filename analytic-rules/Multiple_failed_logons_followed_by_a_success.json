@@ -29,7 +29,7 @@
                 "tactics": [
                     "CredentialAccess"
                 ],
-                "techniques": [],
+                "techniques": ["T1110"],
                 "subTechniques": [],
                 "alertRuleTemplateName": null,
                 "incidentConfiguration": {
