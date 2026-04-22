@@ -32,8 +32,7 @@
                     "PrivilegeEscalation"
                 ],
                 "techniques": [
-                    "T1555",
-                    "T1098"
+                    "T1484"
                 ],
                 "subTechniques": [],
                 "alertRuleTemplateName": "95dc4ae3-e0f2-48bd-b996-cdd22b90f9af",
