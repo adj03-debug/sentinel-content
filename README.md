@@ -32,7 +32,7 @@ Detection rules covering identity, credential access, persistence, and defense e
 - Honeypot account sign-in activity detected
 - Suspicious application consent similar to O365 Attack Toolkit
 
-### Workbooks (1)
+### Workbooks (2)
 - Data Collection Health Monitoring
 - Security Operations Efficiency
 
